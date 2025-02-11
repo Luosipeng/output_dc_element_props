@@ -46,7 +46,10 @@ class ETAPExporter:
         inverter_df = self._process_inverters()
         dc_load_df = self._process_dc_loads()
         battery_df = self._process_batteries()
-        self._save_to_excel({"INVERTER": inverter_df, "DCLUMPLOAD": dc_load_df, "BATTERY": battery_df})
+        dc_cable_df = self._process_dc_cables()
+        dc_bus_df = self._process_dc_buses()
+        dc_impedance_df = self._process_dc_impedances()
+        self._save_to_excel({"INVERTER": inverter_df, "DCLUMPLOAD": dc_load_df, "BATTERY": battery_df,"DCCABLE": dc_cable_df,"DCBUS": dc_bus_df,"DC_IMPEDANCE": dc_impedance_df})
 
     def _process_inverters(self):
         """处理逆变器数据"""
@@ -59,6 +62,8 @@ class ETAPExporter:
         # 基础属性提取
         base_attributes = {
             'IID': 'ID',
+            'InService':'InService',
+            'STATE':'InServiceState',
             'Felement': 'BusID',
             'Telement': 'CZNetwork',
             'ACkV': 'KV',
@@ -109,6 +114,8 @@ class ETAPExporter:
             {
                 "ID": idx,
                 "IID": ld.attrib.get("ID"),
+                "InService":ld.attrib.get("InService"),
+                "STATE": ld.attrib.get("InServiceState"),
                 "BUS_I": ld.attrib.get("Bus"),
                 "RatedV": ld.attrib.get("DCV"),
                 "RatedKW": ld.attrib.get("KW")
@@ -124,6 +131,8 @@ class ETAPExporter:
             {
                 "ID": idx,
                 "IID": bat.attrib.get("ID"),
+                "InService": bat.attrib.get("InService"),
+                "STATE": bat.attrib.get("InServiceState"),
                 "BusID": bat.attrib.get("Bus"),
                 "Cells": bat.attrib.get("NrOfCells"),
                 "Packs": bat.attrib.get("NoOfPacks"),
@@ -135,6 +144,56 @@ class ETAPExporter:
     def _process_dc_cables(self):
         """处理直流电缆数据"""
         print("Processing DC cable data...")
+        root=ET.fromstring(self.etap.projectdata.getallelementdata("CABLE"))
+        return pd.DataFrame([
+            {
+                "ID": idx,
+                "IID": cable.attrib.get("ID"),
+                "InService": cable.attrib.get("InService"),
+                "STATE": cable.attrib.get("InServiceState"),
+                "FromBus": cable.attrib.get("FromBus"),
+                "ToBus": cable.attrib.get("ToBus"),
+                "LENGTH": cable.attrib.get("LengthValue"),
+                "LENGTH_Unit": cable.attrib.get("ImpedanceUnits"),
+                "OhmsPerLengthValue": cable.attrib.get("OhmsPerLengthValue"),
+                "OhmsPerLengthUnit": cable.attrib.get("OhmsPerLengthUnit"),
+                "RPosValue": cable.attrib.get("RPosValue"),
+                "XPosValue": cable.attrib.get("XPosValue"),
+            }
+            for idx, cable in enumerate(root.findall("CABLE"), 1)
+        ])
+
+    def _process_dc_buses(self):
+        """处理直流母线数据"""
+        print("Processing DC bus data...")
+        root=ET.fromstring(self.etap.projectdata.getallelementdata("DCBUS"))
+        return pd.DataFrame([
+            {
+                "ID": idx,
+                "IID": bus.attrib.get("ID"),
+                "NominalV": bus.attrib.get("NominalV"),
+                "InService": bus.attrib.get("InService"),
+                "STATE": bus.attrib.get("InServiceState"),
+            }
+            for idx, bus in enumerate(root.findall("DCBUS"), 1)
+        ])
+    def _process_dc_impedances(self):
+        """处理直流阻抗数据"""
+        print("Processing DC impedance data...")
+        root=ET.fromstring(self.etap.projectdata.getallelementdata("DCIMPEDANCE"))
+        return pd.DataFrame([
+            {
+                "ID": idx,
+                "IID": imp.attrib.get("ID"),
+                "InService": imp.attrib.get("InService"),
+                "STATE": imp.attrib.get("InServiceState"),
+                "FromBus": imp.attrib.get("FromBus"),
+                "ToBus": imp.attrib.get("ToBus"),
+                "RValue": imp.attrib.get("RValue"),
+                "LValue": imp.attrib.get("LValue"),
+            }
+            for idx, imp in enumerate(root.findall("DCIMPEDANCE"), 1)
+        ])
     def _save_to_excel(self, data_dict):
         """保存数据到Excel"""
         print("Exporting to Excel...")
