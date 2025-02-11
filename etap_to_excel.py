@@ -71,6 +71,8 @@ class ETAPExporter:
             'KVA': 'KVA',
             'DCKW': 'DckW',
             'DCEff': 'DcPercentEFF',
+            'ACkW': 'GenCat0ACkW',
+            'ACkVar': 'GenCat0kVar',
             'Vref': 'Vref',
             'Smax': 'KVAMax',
             'Pmax': 'KWMax',
