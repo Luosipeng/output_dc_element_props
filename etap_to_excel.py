@@ -185,7 +185,9 @@ class ETAPExporter:
                     "STATE": ld.attrib.get("InServiceState"),
                     "BUS_I": ld.attrib.get("Bus"),
                     "RatedV": ld.attrib.get("DCV"),
-                    "RatedKW": ld.attrib.get("KW")
+                    "RatedKW": ld.attrib.get("KW"),
+                    "Percent_P": ld.attrib.get("MTLoadPercent"),
+                    "Percent_Z": ld.attrib.get("StaticLoadPercent"),
                 }
                 for idx, ld in enumerate(loads, 1)
             ])

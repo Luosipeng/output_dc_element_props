@@ -64,7 +64,7 @@ class Main():
 if __name__ == "__main__":
     main = Main(base_address)
     #Run the power flow analysis
-    main.run_power_flow(revision_name, config_name, study_case, presentation, output_report, get_online_data)
+    main.run_unbalanced_power_flow(revision_name, config_name, study_case, presentation, output_report, get_online_data)
     # export result to excel file
     result = main.export_report()
 

@@ -8,10 +8,10 @@ import json
 import etap
 import pandas as pd
 
-from configuration.configuration import base_address, revision_name, config_name, study_case, presentation, output_report, get_online_data
+from configuration.configuration import base_address, revision_name, config_name, study_case, presentation, output_report, get_online_data,online_config_only,what_if_commands
 
 from src.export_data import export_report
-import xml.etree.ElementTree as ET
+from src.export_result import export_time_series_power_flow
 class Main():
     def __init__(self,base_address):
         print("Test connection...")
@@ -54,35 +54,35 @@ class Main():
         print("Save short circuit flow result...")
         paths = json.loads(response)
         self.path_result = paths["ReportPath"]
+
+    def run_time_domain_load_flow(self, revision_name, config_name, study_case, presentation, output_report, get_online_data,online_config_only, what_if_commands):
+        print("Run time domain load flow...")
+        response = self.etap.studies.runTDLF(revision_name, config_name, study_case, presentation, output_report, get_online_data, online_config_only, what_if_commands)
+        print("Save time domain load flow result...")
+        paths = json.loads(response)
+        print(paths)
+        self.path_result = paths["ReportPath"]
     def export_report(self):
         result_bus = export_report(self.path_result)
         return result_bus
     def change_parameters(self, elementType, elementName, fieldName, value):
         print("Change parameters...")
         self.etap.projectdata.setelementprop(elementType, elementName, fieldName, value)
+    def export_output(self):
+        custom_buses = ['BUS_CNODE_JCT__1333', 'BUS_都天元居开闭所（自）_220', 'BUS_kV爱涛线腾亚环网柜_207']
+
+        result_bus = export_time_series_power_flow(self.path_result,output_file="custom_results.txt",custom_buses=custom_buses)
+        return result_bus
 
     # def run_power_flow(self):
 
 if __name__ == "__main__":
     # configuration/configuration.py
-    base_address = "http://localhost:60000"  # 修改为正确的端口号
-    revision_name = "Base"
-    config_name = "Normal"  # API 返回的配置名称
-    study_case = "ULF"
-    presentation = "OLV1"
-    output_report = "Results"
-    get_online_data = False
-
     main = Main(base_address)
-    studies = main.etap.studies.runULF(revision_name, config_name, study_case, presentation, output_report)
-    result_dict=json.loads(studies)
-    P_value=result_dict["ReportPath"]
-    print(P_value)
-    # a='<string xmlns="http://schemas.microsoft.com/2003/10/Serialization/">'
-    # b='</string>'
-    # result=a+P_value+b
-    # report_path=ET.fromstring(result).text
-    # print(report_path)
-    result_bus = export_report(P_value)
-    print(result_bus)
+    main.run_time_domain_load_flow(revision_name, config_name, study_case, presentation, output_report, get_online_data, online_config_only, what_if_commands)
+    result = main.export_output()
+
+    print("Export report to Excel file")
+    result.to_excel("result.xlsx", index=False)
+
     print("Done.")

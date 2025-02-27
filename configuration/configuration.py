@@ -13,8 +13,8 @@ base_address = "http://localhost:60000"
 # Default configurations
 revision_name = "Base"
 config_name = "Normal"
-study_case = "LF"
-# study_case = "ULF"
+# study_case = "LF"
+study_case = "TDLF"
 presentation = "OLV1"
 output_report = "Results"
 get_online_data = False
