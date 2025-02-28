@@ -70,8 +70,8 @@ class Main():
         self.etap.projectdata.setelementprop(elementType, elementName, fieldName, value)
     def export_output(self):
         custom_buses = ['BUS_CNODE_JCT__1333', 'BUS_都天元居开闭所（自）_220', 'BUS_kV爱涛线腾亚环网柜_207']
-
-        result_bus = export_time_series_power_flow(self.path_result,output_file="custom_results.txt",custom_buses=custom_buses)
+        custom_loads = ["LOAD_南京原野制衣有限公司_939"]
+        result_bus = export_time_series_power_flow(self.path_result,output_file="custom_results.txt",custom_buses=custom_buses,custom_loads=custom_loads)
         return result_bus
 
     # def run_power_flow(self):
