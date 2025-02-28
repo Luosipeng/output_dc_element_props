@@ -152,7 +152,7 @@ class Main():
 
 ### export_time_series_power_flow函数功能
 ```python
-def export_time_series_power_flow(database_path, output_file="time_series_results.txt", custom_buses=None)
+def export_time_series_power_flow(database_path, output_file="time_series_results.txt", custom_buses=None, custom_loads=None)
 ```
 
 该函数处理时域潮流计算的SQLite数据库结果，提供以下功能：
@@ -162,11 +162,14 @@ def export_time_series_power_flow(database_path, output_file="time_series_result
    - 系统最低电压
    - 系统最大支路负载
    - 指定母线的电压和相角
+   - 指定负荷的有功功率、无功功率和电流
    - 系统事件信息
 
 2. **可视化图表生成**：
    - 系统总览图（负荷和损耗、最低电压、最大支路负载、关键母线电压）
    - 母线电压和相角图
+   - 负荷特性图（有功功率、无功功率、电流）
+   - 负荷功率因数图
    - 负荷与事件关联图
 
 3. **数据导出**：
@@ -192,13 +195,23 @@ if __name__ == "__main__":
 - Excel数据：time_series_results.xlsx
 - 系统总览图：system_overview.png
 - 母线电压和相角图：bus_voltage_angle.png
+- 负荷特性图：load_characteristics.png
+- 负荷功率因数图：load_power_factor.png
 - 负荷与事件关系图：load_events_correlation.png
 
 ### 自定义分析
-可以通过指定custom_buses参数来分析特定母线：
+可以通过指定参数来分析特定母线和负荷：
 ```python
 custom_buses = ['BUS_CNODE_JCT__1333', 'BUS_都天元居开闭所（自）_220', 'BUS_kV爱涛线腾亚环网柜_207']
+custom_loads = ['Load_1', 'Load_2', 'Load_3']
 ```
+
+### 负荷数据分析特性
+- **有功功率分析**：追踪负荷有功功率随时间的变化
+- **无功功率分析**：监测负荷无功功率的波动
+- **电流分析**：观察负荷电流的变化趋势
+- **功率因数计算**：基于有功和无功功率自动计算功率因数
+- **多负荷对比**：在同一图表中比较多个负荷的特性
 
 ### 错误处理
 该模块包含完整的异常处理机制，确保在数据处理过程中出现问题时能够提供有用的错误信息，并安全关闭数据库连接。

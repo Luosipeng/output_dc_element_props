@@ -9,7 +9,7 @@ from matplotlib import rcParams
 
 
 def export_time_series_power_flow(database_path, output_file="time_series_results.txt",
-                                  custom_buses=None):
+                                  custom_buses=None,custom_loads=None):
     """
     导出时序潮流计算结果并生成可视化图表
 
@@ -17,6 +17,7 @@ def export_time_series_power_flow(database_path, output_file="time_series_result
     database_path: SQLite数据库文件的路径
     output_file: 输出文本文件的路径
     custom_buses: 用户指定的要查看电压和相角的母线ID列表，例如 ['Bus_1', 'Bus_2']
+    custom_loads: 用户指定的要查看有功无功和电流的负荷ID列表，例如 ['Load_1', 'Load_2']
 
     返回:
     pandas.DataFrame: 包含关键结果数据的DataFrame
@@ -140,34 +141,123 @@ def export_time_series_power_flow(database_path, output_file="time_series_result
                     if bus_iid_result:
                         bus_iid = bus_iid_result[0]
 
-                        # 获取该母线在各时间点的电压和相角
+                        # 一次性获取所有时间点的数据
+                        cur.execute("""
+                            SELECT t.TimeID, t.ResultID, t.Time, b.VPhA, b.AngPhA 
+                            FROM TDTimeID t
+                            LEFT JOIN TDBusResult b ON t.ResultID = b.ResultID AND b.BusIID = ?
+                            ORDER BY t.TimeID
+                        """, (bus_iid,))
+
+                        all_results = cur.fetchall()
+
+                        # 初始化数据列表
                         voltages = []
                         angles = []
+                        valid_data_count = 0
 
-                        for result_id in result_ids:
-                            cur.execute("""
-                                SELECT VPhA, AngPhA FROM TDBusResult 
-                                WHERE ResultID=? AND BusIID=?
-                            """, (result_id, bus_iid))
-                            result = cur.fetchone()
-                            if result:
-                                voltages.append(result[0])
-                                angles.append(result[1])
+                        # 处理查询结果
+                        for result in all_results:
+                            time_id, result_id, time_str, voltage, angle = result
+
+                            if voltage is not None:
+                                voltages.append(voltage)
+                                angles.append(angle)
+                                valid_data_count += 1
+                                f.write(f"{time_str}, {voltage:.4f}, {angle:.4f}\n")
                             else:
                                 voltages.append(None)
                                 angles.append(None)
+                                f.write(f"{time_str}, 数据缺失, 数据缺失\n")
 
-                        # 写入数据
-                        for i, time_point in enumerate(time_points):
-                            if i < len(voltages) and voltages[i] is not None:
-                                f.write(f"{time_point[1]}, {voltages[i]:.4f}, {angles[i]:.4f}\n")
+                        # 调试信息
+                        print(f"母线 {bus_id}: 有效数据点 {valid_data_count}/{len(all_results)}")
 
-                        # 存储数据用于绘图
+                        # 存储数据用于绘图 - 确保长度与时间点一致
                         bus_voltages[bus_id] = voltages
                         bus_angles[bus_id] = angles
+                    else:
+                        f.write(f"未找到母线 {bus_id} 的信息\n")
+
                     f.write("\n")
 
-            # 5. 获取事件信息
+            # 5.获取指定负荷信息
+            loads_to_process = []
+            if custom_loads:
+                loads_to_process.extend(custom_loads)
+                # 确保load_to_process中没有重复项
+
+            loads_to_process = list(set(loads_to_process))
+            #存储负荷的有功无功和
+            load_active_power = {}
+            load_reactive_power = {}
+            load_current = {}
+
+            if loads_to_process:
+                f.write("===== 负荷有功无功和电流随时间变化 =====\n")
+                f.write(f"分析的负荷: {', '.join(loads_to_process)}\n\n")
+
+                # 为每个负荷获取有功无功和电流随时间变化
+                for load_id in loads_to_process:
+                    f.write(f"负荷 {load_id} 的有功功率、无功功率和电流变化:\n")
+                    f.write("时间, 有功功率(MW), 无功功率(Mvar), 电流(A)\n")
+
+                    # 获取负荷的内部ID
+                    cur.execute(f"SELECT DeviceIID FROM TDOneTermDevicesInfo WHERE DeviceName=?", (load_id,))
+                    load_iid_result = cur.fetchall()
+
+                    if load_iid_result:
+                        load_iid = load_iid_result[0]
+
+                        # 确保 load_iid 是整数
+                        load_iid = load_iid[0]  # 根据您之前提到的 DeviceIID
+
+                        # 注意：在 SQLite 中，参数绑定需要使用元组形式，即使只有一个参数
+                        cur.execute("""
+                            SELECT t.TimeID, t.Time, t.ResultID, s.DeviceIID, s.TotalMWPhA, s.TotalMvarPhA, s.AmpPhA 
+                            FROM TDTimeID t
+                            LEFT JOIN TDSourceandLoadResult s ON t.ResultID = s.ResultID
+                            WHERE s.DeviceIID = ?
+                            ORDER BY t.TimeID
+                        """, (load_iid,))  # 注意这里使用元组 (load_iid,)
+
+                        results = cur.fetchall()
+
+                        # 初始化数据列表
+                        active_power_data = []
+                        reactive_power_data = []
+                        current_data = []
+                        valid_data_count = 0
+
+                        # 处理查询结果
+                        for result in results:
+                            time_id, time_str, result_id, device_iid, activepower, reactivepower, current = result
+                            if activepower is not None:
+                                active_power_data.append(activepower)
+                                reactive_power_data.append(reactivepower)
+                                current_data.append(current)
+                                valid_data_count += 1
+                                f.write(f"{time_str}, {activepower:.4f}, {reactivepower:.4f}, {current:.4f}\n")
+                            else:
+                                active_power_data.append(None)
+                                reactive_power_data.append(None)
+                                current_data.append(None)
+                                f.write(f"{time_str}, 数据缺失, 数据缺失, 数据缺失\n")
+
+                        # 调试信息
+                        print(f"负荷 {load_id}: 有效数据点 {valid_data_count}/{len(results)}")
+
+                        # 存储数据用于绘图 - 确保长度与时间点一致
+                        load_active_power[load_id] = active_power_data
+                        load_reactive_power[load_id] = reactive_power_data
+                        load_current[load_id] = current_data
+                    else:
+                        f.write(f"未找到负荷 {load_id} 的信息\n")
+
+                    f.write("\n")
+
+
+            # 6. 获取事件信息
             f.write("===== 系统事件信息 =====\n")
             cur.execute("""
                 SELECT Time, DeviceType, DeviceID, Action, ActionPercent
@@ -291,6 +381,94 @@ def export_time_series_power_flow(database_path, output_file="time_series_result
             plt.savefig('bus_voltage_angle.png', dpi=300)
             print("母线电压和相角图表已保存为 bus_voltage_angle.png")
 
+        # 新增：绘制负荷有功功率、无功功率和电流图表
+        if load_active_power:
+            # 创建一个新的图表，包含三个子图：有功功率、无功功率和电流
+            plt.figure(figsize=(15, 15))
+
+            # 1. 有功功率图
+            plt.subplot(3, 1, 1)
+            for load_id, active_power in load_active_power.items():
+                # 简化负荷ID作为标签
+                label = load_id.split('_')[1] if '_' in load_id else load_id
+                plt.plot(times[:len(active_power)], active_power, label=f"Load {label}")
+
+            plt.title('Load Active Power vs Time')
+            plt.xlabel('Time')
+            plt.ylabel('Active Power (MW)')
+            plt.legend()
+            plt.grid(True)
+            plt.xticks(rotation=45)
+            plt.gca().xaxis.set_major_formatter(DateFormatter('%H:%M'))
+
+            # 2. 无功功率图
+            plt.subplot(3, 1, 2)
+            for load_id, reactive_power in load_reactive_power.items():
+                label = load_id.split('_')[1] if '_' in load_id else load_id
+                plt.plot(times[:len(reactive_power)], reactive_power, label=f"Load {label}")
+
+            plt.title('Load Reactive Power vs Time')
+            plt.xlabel('Time')
+            plt.ylabel('Reactive Power (Mvar)')
+            plt.legend()
+            plt.grid(True)
+            plt.xticks(rotation=45)
+            plt.gca().xaxis.set_major_formatter(DateFormatter('%H:%M'))
+
+            # 3. 电流图
+            plt.subplot(3, 1, 3)
+            for load_id, current in load_current.items():
+                label = load_id.split('_')[1] if '_' in load_id else load_id
+                plt.plot(times[:len(current)], current, label=f"Load {label}")
+
+            plt.title('Load Current vs Time')
+            plt.xlabel('Time')
+            plt.ylabel('Current (A)')
+            plt.legend()
+            plt.grid(True)
+            plt.xticks(rotation=45)
+            plt.gca().xaxis.set_major_formatter(DateFormatter('%H:%M'))
+
+            plt.tight_layout()
+            plt.savefig('load_characteristics.png', dpi=300)
+            print("负荷特性图表已保存为 load_characteristics.png")
+
+            # 额外创建一个功率因数图表
+            plt.figure(figsize=(15, 8))
+            for load_id in load_active_power.keys():
+                if load_id in load_reactive_power:
+                    active = load_active_power[load_id]
+                    reactive = load_reactive_power[load_id]
+
+                    # 计算视在功率和功率因数
+                    apparent_power = []
+                    power_factor = []
+
+                    for p, q in zip(active, reactive):
+                        if p is not None and q is not None:
+                            s = np.sqrt(p ** 2 + q ** 2)
+                            pf = p / s if s > 0 else 0
+                            apparent_power.append(s)
+                            power_factor.append(pf)
+                        else:
+                            apparent_power.append(None)
+                            power_factor.append(None)
+
+                    # 绘制功率因数
+                    label = load_id.split('_')[1] if '_' in load_id else load_id
+                    plt.plot(times[:len(power_factor)], power_factor, label=f"Load {label}")
+
+            plt.title('Load Power Factor vs Time')
+            plt.xlabel('Time')
+            plt.ylabel('Power Factor')
+            plt.legend()
+            plt.grid(True)
+            plt.xticks(rotation=45)
+            plt.gca().xaxis.set_major_formatter(DateFormatter('%H:%M'))
+            plt.tight_layout()
+            plt.savefig('load_power_factor.png', dpi=300)
+            print("负荷功率因数图表已保存为 load_power_factor.png")
+
         # 5. 事件标记图
         plt.figure(figsize=(15, 8))
         plt.plot(times, total_load, 'b-', label='Total Load (MW)')
@@ -340,6 +518,24 @@ def export_time_series_power_flow(database_path, output_file="time_series_result
                 angles = bus_angles[bus_id]
                 padded_angles = angles + [None] * (len(time_points) - len(angles))
                 result_data[f'Bus_{bus_id}_Angle'] = padded_angles
+
+        # 新增：添加负荷数据到Excel导出
+        for load_id, active_power in load_active_power.items():
+            # 确保所有数据长度一致
+            padded_active = active_power + [None] * (len(time_points) - len(active_power))
+            result_data[f'Load_{load_id}_MW'] = padded_active
+
+            # 添加无功功率数据
+            if load_id in load_reactive_power:
+                reactive_power = load_reactive_power[load_id]
+                padded_reactive = reactive_power + [None] * (len(time_points) - len(reactive_power))
+                result_data[f'Load_{load_id}_Mvar'] = padded_reactive
+
+            # 添加电流数据
+            if load_id in load_current:
+                current = load_current[load_id]
+                padded_current = current + [None] * (len(time_points) - len(current))
+                result_data[f'Load_{load_id}_A'] = padded_current
 
         # 创建DataFrame
         result_df = pd.DataFrame(result_data)
