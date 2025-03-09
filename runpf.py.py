@@ -67,48 +67,6 @@ if __name__ == "__main__":
     # Prepare lists to store the results
     main.run_power_flow(revision_name, config_name, study_case, presentation, output_report, get_online_data)
     result = main.export_pfreport()
-    # x_array = []
-    # bus_ID1_array = []
-    # bus_ID2_array = []
-    # volt_mag1_array = []
-    # volt_mag2_array = []
-    # volt_ang1_array = []
-    # volt_ang2_array = []
-    # #Create a loop to test ten cases
-    # start_value=40
-    # iterations=10
-    # for i in range(iterations):
-    #     current_value = start_value + (i * 10)
-    #     current_value_str = str(current_value)
-    #     #change the parameter:input its element type, name, filed and value
-    #     # main.change_parameters("XFORM2W", "T2", "AnsiPosXR", current_value_str)
-    #     main.change_parameters("LUMPEDLOAD", "Lump1", "MVA", current_value_str)
-    #     # main.change_parameters("STLOAD", "Load4", "KVA", current_value_str)
-    #     # main.change_parameters("XLINE", "Line2", "Length", current_value_str)
-    #     #Run the power flow analysis
-    #     main.run_power_flow(revision_name, config_name, study_case, presentation, output_report, get_online_data)
-    #     # main.run_unbalanced_power_flow(revision_name, config_name, study_case, presentation, output_report, get_online_data)
-    #     # export result to excel file
-    #     result = main.export_pfreport()
-    #     # print(result.volt_mag.values[0])
-    #     x_array.append(current_value)  # MVA values
-    #     bus_ID1_array.append(result.bus_ID.values[0])
-    #     bus_ID2_array.append(result.bus_ID.values[1])
-    #     volt_mag1_array.append(result.volt_mag.values[0])
-    #     volt_mag2_array.append(result.volt_mag.values[1])
-    #     volt_ang1_array.append(result.volt_ang.values[0])
-    #     volt_ang2_array.append(result.volt_ang.values[1])
-    #
-    # Create a DataFrame to store the results
-    # df = pd.DataFrame({
-    #     'MVA Value': x_array,
-    #     'bus_ID1': bus_ID1_array,
-    #     'bus_ID2': bus_ID2_array,
-    #     'volt1_mag': volt_mag1_array,
-    #     'volt2_mag': volt_mag2_array,
-    #     'volt1_ang': volt_ang1_array,
-    #     'volt2_ang': volt_ang2_array,
-    # })
 
     # Save the results to an Excel file
     print("Export report to Excel file")
